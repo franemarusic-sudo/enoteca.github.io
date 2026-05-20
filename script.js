@@ -1,38 +1,68 @@
 'use strict';
 
-// ── Password gate ──────────────────────────────────────────
-const CORRECT = 'thedinnerparty';
-const SESSION_KEY = 'enoteca_unlocked';
+// ── Splash (shows on every page load) ─────────────────────────
+const splash = document.getElementById('splash');
 
-const gate = document.getElementById('gate');
-const gateForm = document.getElementById('gate-form');
-const gateInput = document.getElementById('gate-input');
-const gateError = document.getElementById('gate-error');
-
-function unlock() {
-  sessionStorage.setItem(SESSION_KEY, '1');
-  gate.classList.add('gate--hidden');
+function showSplash() {
+  splash.classList.add('splash--active');
+  setTimeout(() => {
+    splash.classList.remove('splash--active');
+  }, 3500);
 }
 
-if (sessionStorage.getItem(SESSION_KEY)) {
-  unlock();
-}
+showSplash();
 
-gateForm.addEventListener('submit', e => {
-  e.preventDefault();
-  if (gateInput.value === CORRECT) {
-    unlock();
-  } else {
-    gateError.textContent = 'Incorrect password.';
-    gateInput.value = '';
-    gateInput.classList.remove('shake');
-    void gateInput.offsetWidth;
-    gateInput.classList.add('shake');
-    gateInput.addEventListener('animationend', () => gateInput.classList.remove('shake'), { once: true });
+// ── Photo strip ────────────────────────────────────────────────
+function initStrip() {
+  const stripEl = document.querySelector('[data-strip]');
+  if (!stripEl) return;
+
+  const track = stripEl.querySelector('.strip__track');
+  const images = Array.from(track.querySelectorAll('img'));
+  const prevBtn = stripEl.querySelector('.strip__btn--prev');
+  const nextBtn = stripEl.querySelector('.strip__btn--next');
+  let current = 0;
+
+  function getVisible() {
+    if (window.innerWidth < 640) return 1;
+    if (window.innerWidth < 1024) return 2;
+    return 3;
   }
-});
 
-// ── Smooth scroll with nav offset ─────────────────────────
+  function update() {
+    const vis = getVisible();
+    const pct = 100 / vis;
+    images.forEach(img => { img.style.flex = `0 0 ${pct}%`; });
+    track.style.transform = `translateX(-${current * pct}%)`;
+    prevBtn.disabled = current === 0;
+    nextBtn.disabled = current >= images.length - vis;
+  }
+
+  prevBtn.addEventListener('click', () => {
+    if (current > 0) { current--; update(); }
+  });
+
+  nextBtn.addEventListener('click', () => {
+    if (current < images.length - getVisible()) { current++; update(); }
+  });
+
+  let startX = 0;
+  track.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+  track.addEventListener('touchend', e => {
+    const diff = startX - e.changedTouches[0].clientX;
+    if (diff > 50 && current < images.length - getVisible()) { current++; update(); }
+    if (diff < -50 && current > 0) { current--; update(); }
+  });
+
+  window.addEventListener('resize', () => {
+    current = Math.min(current, Math.max(0, images.length - getVisible()));
+    update();
+  });
+
+  update();
+}
+
+// ── Smooth scroll ──────────────────────────────────────────────
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
   anchor.addEventListener('click', e => {
     const target = document.querySelector(anchor.getAttribute('href'));
@@ -43,3 +73,5 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     window.scrollTo({ top, behavior: 'smooth' });
   });
 });
+
+initStrip();
